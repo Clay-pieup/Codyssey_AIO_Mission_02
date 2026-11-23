@@ -27,22 +27,59 @@
 - 결정: `.gitignore`에 작업 기준 파일(CLAUDE.md), 명세(`*.pdf`, `Mission_*.md`), `__pycache__/`, `.env`를 적는다.
 - 결과: 얻은 것: `git add .`을 해도 실수로 올라가지 않는다. / 포기한 것: 없음. 다만 `docs/` 안에 둘 슬라이드 PDF는 예외로 열어 둔다.
 
+### 4. 편집기는 Cursor를 쓴다
+- 맥락: 명세의 개발 환경 스크린샷 예시는 VSCode다. Mission 01부터 Cursor를 쓰고 있다.
+- 결정: Cursor를 그대로 쓰고 README에 'VSCode 기반 편집기'라고 적는다.
+- 결과: 얻은 것: 익숙한 화면에서 터미널·파일 목록·Git 표시를 함께 본다. / 포기한 것: 명세 예시와 똑같은 화면 (기능은 같다).
+
 ## 핵심 코드 해설
 (U2부터 파일별로 추가)
 
 ## 수행 로그
 
 ### U1 · 저장소 초기 설정
-(작업 중)
+2026-11-23 · Windows PowerShell (Cursor 터미널)
+
+```text
+PS> python --version              → Python 3.14.7
+PS> git --version                 → git version 2.54.0.windows.1
+PS> git config --global user.name → Clay-pieup
+PS> git config --global user.email → (GitHub noreply 주소, 공개 저장소라 생략)
+PS> git init -b main              → Initialized empty Git repository in …/Codyssey_AIO_Mission_02/.git/
+PS> git add .                     → 경고 3줄: LF will be replaced by CRLF (줄바꿈 방식 안내, 내용 변화 없음)
+PS> git status
+On branch main
+No commits yet
+Changes to be committed:
+        new file:   .gitignore
+        new file:   LEARNING.md
+        new file:   README.md
+  → CLAUDE.md와 명세 파일은 목록에 없음 (.gitignore가 막음)
+PS> git commit -m "Docs: 저장소 뼈대 추가 - README·LEARNING·.gitignore로 Mission 02 시작 준비"
+PS> git remote add origin https://github.com/Clay-pieup/Codyssey_AIO_Mission_02.git
+PS> git push -u origin main
+PS> git log --oneline             → 00265db Docs: 저장소 뼈대 추가 - …
+```
+- GitHub: Public 저장소에서 README가 보이는 것을 확인했다. GitHub 쪽 main 기록(`origin/main`)도 `00265db`이다.
+- 개발 환경 스크린샷: [env.png](docs/screenshots/env.png) (Python·Git 버전, 사용자 이름, 원격 주소. 이메일은 처음부터 출력하지 않음)
+- 명령 7종 진행: init · add · commit · push (4/7)
 
 ## 시행착오
 (아직 없음)
 
 ## 배운 점
-(단위마다 한두 줄)
+- U1: `add`는 '담기', `commit`은 '사진 찍기', `push`는 'GitHub로 올리기'다. 커밋 전에 `git status`로 무엇이 담겼는지 보면 비밀 파일이 올라가는 사고를 막을 수 있다.
 
 ## 용어 사전
 - **Git**: 파일이 언제 어떻게 바뀌었는지 사진첩처럼 차곡차곡 기록해 주는 프로그램. 예전 상태로 되돌리거나 비교할 수 있다.
 - **GitHub**: Git 기록을 인터넷에 올려 두고 다른 사람과 같이 보는 웹사이트.
 - **저장소(repository)**: Git이 기록을 관리하는 폴더 하나. 내 컴퓨터에 있으면 로컬 저장소, GitHub에 있으면 원격 저장소.
 - **`.gitignore`**: "이 파일은 기록하지 마"라고 Git에게 알려 주는 목록 파일.
+- **스테이징(add)**: 사진을 찍기 전에 찍을 물건을 상 위에 올려 두는 단계. 실제 기록은 commit에서 남는다.
+- **커밋(commit)**: 지금 파일 상태를 기록 한 장으로 남기는 것. 이름표(커밋 메시지)를 붙인다.
+- **커밋 번호(해시)**: `00265db`처럼 기록마다 붙는 고유 번호. 겹치지 않는다.
+- **push**: 내 컴퓨터의 기록을 GitHub로 올리는 것.
+- **remote / origin**: remote는 인터넷 저장소 주소, origin은 그 주소의 기본 별명.
+- **origin/main**: 내 컴퓨터가 기억하는 'GitHub 쪽 main의 마지막 기록'. 내 main과 번호가 같으면 push가 끝난 것이다.
+- **LF / CRLF**: 줄바꿈을 나타내는 숨은 표시. 리눅스는 LF, 윈도우는 CRLF를 쓴다.
+- **PowerShell**: 윈도우에서 글자로 명령을 입력하는 창(터미널).
