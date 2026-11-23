@@ -67,6 +67,21 @@
 - 결정: 1~4는 '준비 중입니다'만 출력하고, U4~U7에서 하나씩 채운다.
 - 결과: 얻은 것: 메뉴·입력 검사를 먼저 시험하고 커밋할 수 있다. / 포기한 것: 이 단계에서는 게임을 실제로 할 수 없다.
 
+### 12. 작업 브랜치는 `feature/play-quiz`, 병합은 `--no-ff`
+- 맥락: 명세가 main 외 브랜치에서 퀴즈 풀기를 만들고 main에 병합하라고 하며, `git log --oneline --graph` 스크린샷을 증거로 낸다.
+- 결정: 실무에서 많이 쓰는 `feature/기능이름` 형식으로 브랜치를 만들고, `git merge --no-ff`로 병합 커밋을 남긴다.
+- 결과: 얻은 것: 그래프에 갈라졌다 합쳐진 모양이 그대로 남는다. 그냥 `git merge`면 빨리 감기(fast-forward)로 한 줄이 되어 증거가 약해진다. / 포기한 것: 옵션 하나(`--no-ff`)를 더 설명할 수 있어야 한다.
+
+### 13. 퀴즈 풀기는 만들어 둔 부품을 다시 쓴다
+- 맥락: 문제 출력·채점·입력 검사는 U2·U3에서 이미 만들었다.
+- 결정: `quiz.display()`, `quiz.is_correct()`, `read_number(…, 1, 4)`를 그대로 쓰고, 순서대로 묻고 맞힌 수를 세는 흐름만 새로 만든다. 퀴즈가 0개면 맨 앞에서 `return`한다.
+- 결과: 얻은 것: 새 코드가 짧고, 입력 검사 규칙이 메뉴와 정답 입력에서 똑같다. 0개일 때 점수 계산의 0으로 나누기 오류를 막는다. / 포기한 것: 없음.
+
+### 14. 점수는 `round(맞힌 수 / 전체 * 100)`
+- 맥락: 처음에는 `correct_count * 100 // total`(몫 나눗셈, 소수점 버림)로 썼지만, 내가 `//`를 설명하기 어려웠다.
+- 결정: '맞힌 비율에 100을 곱하고 반올림'으로 바꿨다. 평가에서 생활 감각으로 설명할 수 있는 방식을 골랐다.
+- 결과: 얻은 것: 5/6 → 83점, 4/6 → 67점처럼 익숙한 반올림 점수. / 포기한 것: 정확히 .5인 경우 파이썬 `round`는 가까운 짝수로 간다(12.5 → 12). 6문제에서는 생기지 않는다.
+
 ## 핵심 코드 해설
 
 <details><summary><code>quiz.py</code> — Quiz 클래스와 기본 퀴즈</summary>
@@ -108,6 +123,17 @@
 | `choice = read_number("선택: ", MENU_MIN, MENU_MAX)` | 1~5 중 올바른 번호를 `choice` 변수에 담는다 |
 | `if choice == 1: … elif … else:` | 번호에 따라 다른 기능을 실행한다. 위에서부터 처음 맞는 하나만 실행 |
 | `else: … break` | 남은 번호는 5(종료)뿐. `break`로 메뉴 반복을 빠져나가 프로그램이 끝난다 |
+| `from quiz import Quiz, make_default_quizzes` | 정답 범위(1~4)를 `Quiz.CHOICE_COUNT`에서 가져오려고 Quiz도 불러온다 (U4) |
+| `def play_quiz(self):` | 퀴즈 풀기 메서드 (U4) |
+| `if len(self.quizzes) == 0: … return` | 퀴즈가 없으면 안내하고 바로 메뉴로 돌아간다 |
+| `total = len(self.quizzes)` / `correct_count = 0` | 전체 문제 수와 맞힌 개수를 담을 변수 |
+| `for number, quiz in enumerate(self.quizzes, start=1):` | 문제 수가 정해져 있으니 `for`로 하나씩 꺼내며 1부터 번호를 붙인다 |
+| `quiz.display(number)` | 이 문제를 화면에 보여 준다 (self는 이 quiz) |
+| `user_answer = read_number("정답 입력: ", 1, Quiz.CHOICE_COUNT)` | U3의 입력 검사를 범위 1~4로 다시 쓴다 |
+| `if quiz.is_correct(user_answer): … correct_count += 1` | 맞으면 '정답입니다!'를 출력하고 맞힌 수를 1 늘린다 |
+| `else: print(f"오답입니다. 정답은 {quiz.answer}번입니다.")` | 틀리면 정답 번호를 알려 준다 |
+| `score = round(correct_count / total * 100)` | 맞힌 비율 × 100을 반올림해 100점 만점 점수로 만든다 |
+| `if choice == 1: self.play_quiz()` | 메뉴 1번이 퀴즈 풀기를 부른다 |
 </details>
 
 <details><summary><code>main.py</code> — 실행 시작점</summary>
@@ -201,8 +227,46 @@ e4b5ab5 Feat: 메뉴와 입력 검증 구현 - QuizGame 뼈대, 1~5 메뉴, 공�
 ```
 - 아직 Ctrl+C를 누르면 Traceback(오류 안내문)이 나오며 꺼진다 → U5에서 처리한다.
 
+### U4 · 퀴즈 풀기·브랜치 병합
+2026-11-24 · Windows PowerShell (Cursor 터미널)
+
+```text
+PS> git checkout -b feature/play-quiz     → Switched to a new branch 'feature/play-quiz'
+PS> python main.py                        → 1 선택 후 6문제 풀기
+퀴즈를 시작합니다! (총 6문제)
+정답 입력: 잘못된 입력입니다. 1-4 사이의 숫자를 입력하세요.   (5, abc 입력)
+정답 입력: 오답입니다. 정답은 3번입니다.
+결과: 6문제 중 5문제 정답! (83점)
+PS> python -c "from quiz_game import QuizGame; g = QuizGame(); g.quizzes = []; g.play_quiz()"
+등록된 퀴즈가 없습니다. 먼저 퀴즈를 추가해 주세요.
+PS> git commit -m "Feat: 퀴즈 풀기 기능 구현 - …"       → 61b7629 (feature/play-quiz)
+PS> git push -u origin feature/play-quiz                  → GitHub에 브랜치도 올라감
+PS> git checkout main
+PS> git merge --no-ff feature/play-quiz -m "Merge: feature/play-quiz - 퀴즈 풀기 기능을 main에 병합"
+Merge made by the 'ort' strategy.
+PS> git push
+PS> git log --oneline --graph --all
+*   a820a38 (HEAD -> main, origin/main) Merge: feature/play-quiz - 퀴즈 풀기 기능을 main에 병합
+|\
+| * 61b7629 (origin/feature/play-quiz, feature/play-quiz) Feat: 퀴즈 풀기 기능 구현 - …
+* | 514ec8b Docs: U3 기록 - …
+|/
+* e4b5ab5 Feat: 메뉴와 입력 검증 구현 - …
+```
+- 그래프에서 `feature/play-quiz`가 갈라졌다가 병합 커밋 `a820a38`에서 main과 합쳐진 것을 확인했다.
+- 명령 7종 진행: init · add · commit · push · checkout (5/7)
+
 ## 시행착오
-(아직 없음)
+
+### 1. U3 문서 커밋을 빠뜨리고 브랜치를 만들었다
+- 문제: `git checkout -b feature/play-quiz` 뒤 `git status`에 `modified: LEARNING.md / README.md`가 빨갛게 남았다.
+- 원인: U3 문서를 커밋하지 않은 채 브랜치를 옮겼다. 커밋하지 않은 변경은 어느 브랜치에도 속하지 않아 따라온다.
+- 해결: `git checkout main` → 문서만 커밋·push → `git checkout feature/play-quiz`로 돌아왔다. 덕분에 main과 작업 브랜치가 실제로 갈라져 병합 그래프가 더 분명해졌다.
+
+### 2. AI가 PC에 보낸 파일이 한 번 반영되지 않았다
+- 문제: 점수 계산 줄을 바꾼 `quiz_game.py`를 보냈는데 PC 파일은 예전 그대로였다.
+- 원인: 파일을 만든 직후 바로 보내서 예전 내용이 전달됐다 (전송 시점 문제).
+- 해결: PC 파일의 지문(md5)을 비교해 발견하고 다시 보냈다. 앞으로도 보낼 때마다 지문을 확인한다.
 
 ## 배운 점
 - U2: `self`는 클래스(틀)가 아니라 메서드를 부른 '바로 그 문제'다. `q2.is_correct(2)`면 q2의 정답과 비교한다. 처음엔 틀렸다가 붕어빵 비유로 이해했다.
@@ -213,6 +277,8 @@ e4b5ab5 Feat: 메뉴와 입력 검증 구현 - QuizGame 뼈대, 1~5 메뉴, 공�
   | 틀린 입력 | `continue` | 반복의 처음으로 돌아가 다시 묻기 (회전목마 다음 바퀴) |
   | 올바른 입력 | `return number` | 함수를 끝내고 숫자를 돌려주기 |
   | 5 선택 | `break` | 메뉴 반복을 끝내기 (회전목마에서 내림) |
+- U4: 브랜치는 원본 공책(main)을 복사한 연습장이다. 연습장에서 만들고 잘 되면 main에 합친다. 커밋하지 않은 변경은 브랜치를 옮겨도 따라온다.
+- U4: 파이썬 `round(값)`은 엑셀 `ROUND(값, 0)`과 같다 (정수로 반올림). 처음에는 엑셀 `ROUND(값, 2)`처럼 생각해 66.67을 골랐다. `//`(소수점 버림)도 헷갈려서 점수 계산을 `round`로 바꿨다.
 - U1: `add`는 '담기', `commit`은 '사진 찍기', `push`는 'GitHub로 올리기'다. 커밋 전에 `git status`로 무엇이 담겼는지 보면 비밀 파일이 올라가는 사고를 막을 수 있다.
 
 ### 과제 목표, 내 말로
@@ -225,6 +291,7 @@ e4b5ab5 Feat: 메뉴와 입력 검증 구현 - QuizGame 뼈대, 1~5 메뉴, 공�
 - `try/except`: 오류가 날 수 있는 일(`int("abc")`)을 try에서 해 보고, 오류가 나면 except에서 받아 프로그램이 멈추지 않게 한다.
 - `if/elif/else`: 메뉴 번호에 따라 다른 기능으로 길을 나눈다. 위에서부터 처음 맞는 하나만 실행된다.
 - 함수의 매개변수·반환값: `read_number("선택: ", 1, 5)`는 묻는 글과 범위를 재료로 받고, 검사를 통과한 숫자를 `return`으로 돌려준다.
+- 브랜치 생성·병합: `git checkout -b 이름`으로 연습장(브랜치)을 만들어 옮겨 가고, 작업 후 `git checkout main`으로 돌아와 `git merge --no-ff 이름`으로 합친다.
 
 ## 용어 사전
 - **Git**: 파일이 언제 어떻게 바뀌었는지 사진첩처럼 차곡차곡 기록해 주는 프로그램. 예전 상태로 되돌리거나 비교할 수 있다.
@@ -260,3 +327,14 @@ e4b5ab5 Feat: 메뉴와 입력 검증 구현 - QuizGame 뼈대, 1~5 메뉴, 공�
 - **`None`**: '아직 값이 없음'을 뜻하는 특별한 값. 0과 다르다.
 - **`if` / `elif` / `else`**: 조건에 따라 길을 나눈다. 위에서부터 처음 맞는 하나만 간다.
 - **Traceback**: 프로그램이 오류로 멈출 때 나오는 오류 경로 안내문.
+- **브랜치(branch)**: 원본(main)을 건드리지 않고 따로 작업하는 갈래. 원본 공책을 복사한 연습장.
+- **checkout**: 다른 브랜치로 옮겨 가는 명령. `-b`를 붙이면 새로 만들면서 옮겨 간다.
+- **merge(병합)**: 다른 브랜치의 작업을 지금 브랜치에 합치는 것.
+- **fast-forward / `--no-ff`**: 빨리 감기는 갈래 없이 한 줄로 이어 붙이는 병합, `--no-ff`는 '합쳤다'는 병합 커밋을 꼭 남기라는 옵션.
+- **병합 커밋**: 두 갈래를 합쳤다는 기록. 그래프에서 두 선이 만나는 점.
+- **작업 중인 변경(working tree)**: 고쳤지만 아직 커밋하지 않은 상태. 브랜치를 옮겨도 따라온다.
+- **`--graph --all`**: 기록을 갈래 그림으로, 모든 브랜치를 함께 보여 달라는 옵션.
+- **`round()`**: 반올림 함수. 숫자만 넣으면 정수로, `round(값, 2)`처럼 자릿수를 넣으면 그 자리까지.
+- **`/` 와 `//`**: `/`는 보통 나눗셈(7 / 2 = 3.5), `//`는 소수점 아래를 버리는 몫 나눗셈(7 // 2 = 3).
+- **`+=`**: `a += 1`은 `a = a + 1`의 줄임말 (1 늘리기).
+- **`python -c "…"`**: 파일 없이 따옴표 안의 짧은 코드를 바로 실행.
