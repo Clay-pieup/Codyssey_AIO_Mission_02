@@ -29,6 +29,24 @@ class Quiz:
         return user_answer == self.answer
 
 
+def make_default_quizzes():
+    """기본 퀴즈 6개를 Quiz 인스턴스로 만들어 리스트로 돌려준다."""
+    return [
+        Quiz("True와 False 두 값만 가지는 자료형은?",
+             ["int", "str", "bool", "list"], 3),
+        Quiz("여러 값을 순서대로 담고, 0번부터 번호로 꺼내 쓰는 자료형은?",
+             ["dict", "int", "str", "list"], 4),
+        Quiz("조건이 참인 동안 계속 반복할 때 쓰는 문법은?",
+             ["for", "if", "while", "def"], 3),
+        Quiz("클래스로 객체를 만들 때 자동으로 실행되는 메서드는?",
+             ["__main__", "__init__", "self", "print"], 2),
+        Quiz("내 컴퓨터의 커밋을 GitHub 원격 저장소로 올리는 Git 명령은?",
+             ["git pull", "git clone", "git push", "git init"], 3),
+        Quiz("새 브랜치를 만들면서 그 브랜치로 바로 옮겨 가는 명령은?",
+             ["git checkout -b 이름", "git merge 이름", "git add 이름", "git status"], 1),
+    ]
+
+
 if __name__ == "__main__":
     # 이 파일만 따로 실행했을 때의 자체 점검 (python quiz.py)
     sample = Quiz(
@@ -40,3 +58,9 @@ if __name__ == "__main__":
     print()
     print("2번을 골랐을 때:", sample.is_correct(2))
     print("3번을 골랐을 때:", sample.is_correct(3))
+
+    quizzes = make_default_quizzes()
+    print()
+    print(f"기본 퀴즈 {len(quizzes)}개")
+    for number, quiz in enumerate(quizzes, start=1):
+        print(f"[{number}] {quiz.question}")
