@@ -1,6 +1,6 @@
 """퀴즈 게임 전체를 관리하는 QuizGame 클래스"""
 
-from quiz import make_default_quizzes
+from quiz import Quiz, make_default_quizzes
 
 MENU_MIN = 1      # 메뉴 번호 최솟값
 MENU_MAX = 5      # 메뉴 번호 최댓값
@@ -44,13 +44,39 @@ class QuizGame:
         print("5. 종료")
         print(LINE)
 
+    def play_quiz(self):
+        """저장된 퀴즈를 차례로 출제하고, 맞힌 개수와 점수를 보여 준다."""
+        if len(self.quizzes) == 0:
+            print("등록된 퀴즈가 없습니다. 먼저 퀴즈를 추가해 주세요.")
+            return
+
+        total = len(self.quizzes)
+        correct_count = 0
+        print(f"퀴즈를 시작합니다! (총 {total}문제)")
+
+        for number, quiz in enumerate(self.quizzes, start=1):
+            print("-" * 40)
+            quiz.display(number)
+            print()
+            user_answer = read_number("정답 입력: ", 1, Quiz.CHOICE_COUNT)
+            if quiz.is_correct(user_answer):
+                print("정답입니다!")
+                correct_count += 1
+            else:
+                print(f"오답입니다. 정답은 {quiz.answer}번입니다.")
+
+        score = round(correct_count / total * 100)
+        print(LINE)
+        print(f"결과: {total}문제 중 {correct_count}문제 정답! ({score}점)")
+        print(LINE)
+
     def run(self):
         """메뉴를 보여 주고 번호를 받아 기능을 실행한다. 5(종료)를 고를 때까지 반복한다."""
         while True:
             self.show_menu()
             choice = read_number("선택: ", MENU_MIN, MENU_MAX)
             if choice == 1:
-                print("퀴즈 풀기는 준비 중입니다.")
+                self.play_quiz()
             elif choice == 2:
                 print("퀴즈 추가는 준비 중입니다.")
             elif choice == 3:
