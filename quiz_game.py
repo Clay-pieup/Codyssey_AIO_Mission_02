@@ -1,10 +1,15 @@
 """퀴즈 게임 전체를 관리하는 QuizGame 클래스"""
 
+import json
+import os
+
 from quiz import Quiz, make_default_quizzes
 
 MENU_MIN = 1      # 메뉴 번호 최솟값
 MENU_MAX = 5      # 메뉴 번호 최댓값
 LINE = "=" * 40   # 구분선
+# 저장 파일 위치: 이 파일(quiz_game.py)이 있는 폴더(프로젝트 루트)의 state.json
+STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.json")
 
 
 def read_number(prompt, min_value, max_value):
@@ -31,6 +36,58 @@ class QuizGame:
     def __init__(self):
         self.quizzes = make_default_quizzes()  # 퀴즈 목록 (Quiz 인스턴스들의 list)
         self.best_score = None                 # 최고 점수 (아직 안 풀었으면 None)
+        self.load_state()                      # 저장 파일이 있으면 그 내용으로 바꾼다
+
+    def best_score_text(self):
+        """최고 점수를 화면용 글자로 돌려준다. 아직 없으면 '없음'."""
+        if self.best_score is None:
+            return "없음"
+        return f"{self.best_score}점"
+
+    def load_state(self):
+        """state.json을 읽어 퀴즈 목록과 최고 점수를 채운다. 없거나 깨졌으면 기본 퀴즈를 그대로 쓴다."""
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as file:
+                data = json.load(file)
+            quizzes = []
+            for item in data["quizzes"]:
+                quizzes.append(Quiz(item["question"], item["choices"], item["answer"]))
+            best_score = data["best_score"]
+            if best_score is not None and not isinstance(best_score, int):
+                raise ValueError("best_score는 정수 또는 null이어야 합니다.")
+        except FileNotFoundError:
+            print("저장된 데이터가 없어 기본 퀴즈로 시작합니다.")
+            return
+        except (ValueError, KeyError, TypeError):
+            print("저장 파일(state.json)이 손상되어 기본 퀴즈로 복구합니다.")
+            return
+        except OSError:
+            print("저장 파일을 읽을 수 없어 기본 퀴즈로 시작합니다.")
+            return
+
+        self.quizzes = quizzes
+        self.best_score = best_score
+        print(f"저장된 데이터를 불러왔습니다. (퀴즈 {len(self.quizzes)}개, 최고점수 {self.best_score_text()})")
+
+    def save_state(self):
+        """퀴즈 목록과 최고 점수를 state.json에 UTF-8로 저장한다."""
+        data = {
+            "quizzes": [],
+            "best_score": self.best_score,
+        }
+        for quiz in self.quizzes:
+            data["quizzes"].append({
+                "question": quiz.question,
+                "choices": quiz.choices,
+                "answer": quiz.answer,
+            })
+        try:
+            with open(STATE_FILE, "w", encoding="utf-8") as file:
+                json.dump(data, file, ensure_ascii=False, indent=2)
+        except OSError:
+            print("데이터 저장에 실패했습니다. (state.json을 쓸 수 없습니다)")
+            return
+        print("데이터를 저장했습니다.")
 
     def show_menu(self):
         """메뉴 화면을 출력한다."""
@@ -71,18 +128,25 @@ class QuizGame:
         print(LINE)
 
     def run(self):
-        """메뉴를 보여 주고 번호를 받아 기능을 실행한다. 5(종료)를 고를 때까지 반복한다."""
-        while True:
-            self.show_menu()
-            choice = read_number("선택: ", MENU_MIN, MENU_MAX)
-            if choice == 1:
-                self.play_quiz()
-            elif choice == 2:
-                print("퀴즈 추가는 준비 중입니다.")
-            elif choice == 3:
-                print("퀴즈 목록은 준비 중입니다.")
-            elif choice == 4:
-                print("점수 확인은 준비 중입니다.")
-            else:
-                print("프로그램을 종료합니다.")
-                break
+        """메뉴를 보여 주고 번호를 받아 기능을 실행한다. 5(종료)를 고를 때까지 반복한다.
+        Ctrl+C나 입력 끊김(EOF)이 생겨도 저장하고 안전하게 끝낸다."""
+        try:
+            while True:
+                self.show_menu()
+                choice = read_number("선택: ", MENU_MIN, MENU_MAX)
+                if choice == 1:
+                    self.play_quiz()
+                elif choice == 2:
+                    print("퀴즈 추가는 준비 중입니다.")
+                elif choice == 3:
+                    print("퀴즈 목록은 준비 중입니다.")
+                elif choice == 4:
+                    print("점수 확인은 준비 중입니다.")
+                else:
+                    self.save_state()
+                    print("프로그램을 종료합니다.")
+                    break
+        except (KeyboardInterrupt, EOFError):
+            print()
+            print("입력이 중단되었습니다. 저장 후 안전하게 종료합니다.")
+            self.save_state()
