@@ -136,6 +136,18 @@ class QuizGame:
         print(LINE)
         print(f"결과: {total}문제 중 {correct_count}문제 정답! ({score}점)")
         print(LINE)
+        self.update_best_score(score)
+
+    def update_best_score(self, score):
+        """이번 점수가 최고 점수보다 높으면(또는 처음이면) 바꾸고 바로 저장한다."""
+        if self.best_score is None or score > self.best_score:
+            self.best_score = score
+            print("새로운 최고 점수입니다!")
+            self.save_state()
+        elif score == self.best_score:
+            print(f"최고 점수({self.best_score}점)와 같은 점수입니다!")
+        else:
+            print(f"최고 점수는 {self.best_score}점입니다. 다음엔 넘어 보세요!")
 
     def add_quiz(self):
         """문제·선택지 4개·정답 번호를 입력받아 새 퀴즈를 추가하고 바로 저장한다."""
@@ -161,6 +173,13 @@ class QuizGame:
         for number, quiz in enumerate(self.quizzes, start=1):
             print(f"[{number}] {quiz.question}")
 
+    def show_score(self):
+        """최고 점수를 보여 준다. 아직 한 번도 풀지 않았으면 안내한다."""
+        if self.best_score is None:
+            print("아직 퀴즈를 풀지 않았습니다. 1번 메뉴에서 먼저 풀어 보세요.")
+            return
+        print(f"최고 점수: {self.best_score_text()}")
+
     def run(self):
         """메뉴를 보여 주고 번호를 받아 기능을 실행한다. 5(종료)를 고를 때까지 반복한다.
         Ctrl+C나 입력 끊김(EOF)이 생겨도 저장하고 안전하게 끝낸다."""
@@ -175,7 +194,7 @@ class QuizGame:
                 elif choice == 3:
                     self.show_quizzes()
                 elif choice == 4:
-                    print("점수 확인은 준비 중입니다.")
+                    self.show_score()
                 else:
                     self.save_state()
                     print("프로그램을 종료합니다.")
