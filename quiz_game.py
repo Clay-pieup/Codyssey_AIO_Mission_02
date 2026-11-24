@@ -150,6 +150,17 @@ class QuizGame:
         print(f"퀴즈가 추가되었습니다! (총 {len(self.quizzes)}개)")
         self.save_state()
 
+    def show_quizzes(self):
+        """등록된 퀴즈의 문제 글만 번호와 함께 보여 준다 (정답은 보여 주지 않음)."""
+        if len(self.quizzes) == 0:
+            print("등록된 퀴즈가 없습니다. 먼저 퀴즈를 추가해 주세요.")
+            return
+
+        print(f"등록된 퀴즈 목록 (총 {len(self.quizzes)}개)")
+        print("-" * 40)
+        for number, quiz in enumerate(self.quizzes, start=1):
+            print(f"[{number}] {quiz.question}")
+
     def run(self):
         """메뉴를 보여 주고 번호를 받아 기능을 실행한다. 5(종료)를 고를 때까지 반복한다.
         Ctrl+C나 입력 끊김(EOF)이 생겨도 저장하고 안전하게 끝낸다."""
@@ -162,7 +173,7 @@ class QuizGame:
                 elif choice == 2:
                     self.add_quiz()
                 elif choice == 3:
-                    print("퀴즈 목록은 준비 중입니다.")
+                    self.show_quizzes()
                 elif choice == 4:
                     print("점수 확인은 준비 중입니다.")
                 else:
