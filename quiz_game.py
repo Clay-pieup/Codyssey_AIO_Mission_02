@@ -2,6 +2,7 @@
 
 import json
 import os
+import random
 
 from quiz import Quiz, make_default_quizzes
 
@@ -117,11 +118,13 @@ class QuizGame:
             print("등록된 퀴즈가 없습니다. 먼저 퀴즈를 추가해 주세요.")
             return
 
-        total = len(self.quizzes)
+        questions = list(self.quizzes)  # 원래 목록은 그대로 두고 복사본만 섞는다
+        random.shuffle(questions)       # 보너스: 풀 때마다 문제 순서를 무작위로 섞기
+        total = len(questions)
         correct_count = 0
-        print(f"퀴즈를 시작합니다! (총 {total}문제)")
+        print(f"퀴즈를 시작합니다! (총 {total}문제, 순서는 무작위)")
 
-        for number, quiz in enumerate(self.quizzes, start=1):
+        for number, quiz in enumerate(questions, start=1):
             print("-" * 40)
             quiz.display(number)
             print()
