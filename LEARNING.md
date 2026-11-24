@@ -82,6 +82,26 @@
 - 결정: '맞힌 비율에 100을 곱하고 반올림'으로 바꿨다. 평가에서 생활 감각으로 설명할 수 있는 방식을 골랐다.
 - 결과: 얻은 것: 5/6 → 83점, 4/6 → 67점처럼 익숙한 반올림 점수. / 포기한 것: 정확히 .5인 경우 파이썬 `round`는 가까운 짝수로 간다(12.5 → 12). 6문제에서는 생기지 않는다.
 
+### 15. state.json은 dict로 바꿔 JSON으로 저장한다
+- 맥락: 명세가 퀴즈와 최고 점수를 프로젝트 루트 `state.json`(UTF-8)에 저장하고, 키 이름·구조를 일관되게 하라고 한다.
+- 결정: 저장할 때 Quiz 객체를 `{"question", "choices", "answer"}` dict로 바꾸고 `{"quizzes": [...], "best_score": ...}`로 묶어 `json.dump`한다. 읽을 때는 dict를 다시 `Quiz(...)`로 만든다. `ensure_ascii=False`, `indent=2`로 한글을 그대로, 보기 좋게 저장한다.
+- 결과: 얻은 것: 명세 예시와 같은 구조. 다시 `Quiz(...)`로 만들면서 U2의 검사(선택지 4개·정답 1~4)가 그대로 돌아 잘못 고친 파일도 잡아낸다. / 포기한 것: Quiz에 속성을 더하면 저장·불러오기 코드도 함께 고쳐야 한다.
+
+### 16. 파일 오류는 3가지로 나누고, 어떤 경우든 기본 퀴즈로 시작한다
+- 맥락: 명세는 파일이 없거나 손상돼도 프로그램이 실행돼야 한다고 한다.
+- 결정: `FileNotFoundError`(첫 실행) / `ValueError·KeyError·TypeError`(내용 손상) / `OSError`(그 밖의 읽기 실패)로 나눠 안내 문구를 다르게 하고, 모두 기본 퀴즈를 그대로 쓴다. 손상된 파일은 다음 저장 때 올바른 내용으로 덮어쓴다.
+- 결과: 얻은 것: 어떤 파일 상태에서도 멈추지 않고, 사용자가 무슨 일인지 안다. / 포기한 것: 손상된 원본을 따로 백업하지 않는다.
+
+### 17. 종료할 때 저장하고, Ctrl+C·EOF도 `run` 전체를 감싸 처리한다
+- 맥락: 명세는 Ctrl+C나 입력 끊김에도 비정상 종료하지 말고, 가능하면 저장 후 끝내라고 한다.
+- 결정: 메뉴 반복 전체를 `try`로 감싸 `KeyboardInterrupt`·`EOFError`를 받으면 안내 후 `save_state()`. 5번 종료 때도 저장한다. 저장 위치는 `__file__` 기준 폴더로 고정한다.
+- 결과: 얻은 것: 메뉴·퀴즈 풀기 어디서 멈춰도 Traceback 없이 저장된다. 다른 폴더에서 실행해도 같은 파일을 쓴다. / 포기한 것: 퀴즈 추가·최고 점수 갱신 때의 즉시 저장은 U6·U7에서 연결한다.
+
+### 18. state.json은 저장소에 올리지 않는다
+- 맥락: 플레이할 때마다 바뀌는 개인 기록이다. 올리면 `git status`에 계속 modified로 떠서 다른 커밋에 섞이기 쉽다.
+- 결정: `.gitignore`에 `state.json`을 넣고, README에 경로·역할·구조 표를 적는다.
+- 결과: 얻은 것: 평가자는 기본 퀴즈로 깨끗하게 시작하고, 커밋이 기능 단위로 유지된다. / 포기한 것: 저장소에서 실제 파일을 바로 열어 볼 수는 없다 (README 표로 대신).
+
 ## 핵심 코드 해설
 
 <details><summary><code>quiz.py</code> — Quiz 클래스와 기본 퀴즈</summary>
@@ -134,6 +154,19 @@
 | `else: print(f"오답입니다. 정답은 {quiz.answer}번입니다.")` | 틀리면 정답 번호를 알려 준다 |
 | `score = round(correct_count / total * 100)` | 맞힌 비율 × 100을 반올림해 100점 만점 점수로 만든다 |
 | `if choice == 1: self.play_quiz()` | 메뉴 1번이 퀴즈 풀기를 부른다 |
+| `import json`, `import os` | JSON 읽기·쓰기 도구와 파일 경로 도구를 불러온다 (U5) |
+| `STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.json")` | 이 파일이 있는 폴더(프로젝트 루트)에 `state.json`을 붙인 경로 |
+| `self.load_state()` (`__init__` 끝) | 게임을 만들 때 저장 파일을 읽어 기본 퀴즈를 바꾼다 |
+| `def best_score_text(self):` | 최고 점수가 None이면 "없음", 있으면 "80점"처럼 화면용 글자로 |
+| `with open(STATE_FILE, "r", encoding="utf-8") as file: data = json.load(file)` | 파일을 읽기 모드로 열어 JSON을 dict·list로 바꿔 읽는다. with가 끝나면 자동으로 닫힌다 |
+| `for item in data["quizzes"]: quizzes.append(Quiz(item["question"], item["choices"], item["answer"]))` | dict 하나하나를 다시 Quiz로 만들어 목록에 붙인다 (검사도 다시 돈다) |
+| `if best_score is not None and not isinstance(best_score, int): raise ValueError(…)` | 최고 점수가 정수도 null도 아니면 손상으로 본다 |
+| `except FileNotFoundError:` / `except (ValueError, KeyError, TypeError):` / `except OSError:` | 첫 실행 / 내용 손상 / 그 밖의 읽기 실패. 모두 안내 후 `return`으로 기본 퀴즈를 그대로 쓴다 |
+| `data = {"quizzes": [], "best_score": self.best_score}` | 저장할 내용을 이름표 붙은 상자(dict)로 준비한다 |
+| `data["quizzes"].append({"question": …, "choices": …, "answer": …})` | Quiz 하나를 dict 하나로 바꿔 목록에 넣는다 |
+| `with open(STATE_FILE, "w", encoding="utf-8") as file: json.dump(data, file, ensure_ascii=False, indent=2)` | 쓰기 모드로 열어(없으면 만들고 있으면 덮어씀) 한글 그대로, 2칸 들여쓰기로 저장한다 |
+| `try: while True: …` / `except (KeyboardInterrupt, EOFError):` | 메뉴 반복 어디서 Ctrl+C·입력 끊김이 나도 안내 후 저장하고 끝낸다 |
+| `else: self.save_state(); print("프로그램을 종료합니다."); break` | 5번 종료 때도 저장한다 |
 </details>
 
 <details><summary><code>main.py</code> — 실행 시작점</summary>
@@ -256,6 +289,20 @@ PS> git log --oneline --graph --all
 - 그래프에서 `feature/play-quiz`가 갈라졌다가 병합 커밋 `a820a38`에서 main과 합쳐진 것을 확인했다.
 - 명령 7종 진행: init · add · commit · push · checkout (5/7)
 
+### U5 · state.json 저장·불러오기
+2026-11-24 · Windows PowerShell (Cursor 터미널) · `python main.py`
+
+| 상황 | 결과 |
+|---|---|
+| 처음 실행(파일 없음) → `5` | 저장된 데이터가 없어 기본 퀴즈로 시작합니다. → 데이터를 저장했습니다. → `state.json` 생성 (한글 문제 6개 그대로) |
+| 다시 실행 | 저장된 데이터를 불러왔습니다. (퀴즈 6개, 최고점수 없음) |
+| `선택:`에서 Ctrl+C | Traceback 없이 "입력이 중단되었습니다. 저장 후 안전하게 종료합니다." → 데이터를 저장했습니다. |
+| `Set-Content state.json "{broken"` 후 실행 | 저장 파일(state.json)이 손상되어 기본 퀴즈로 복구합니다. → `5`로 끝내면 올바른 내용으로 다시 저장 |
+| `git status` | `modified: .gitignore`, `modified: quiz_game.py`만. `state.json`은 보이지 않음 |
+
+- AI가 추가로 돌려 본 경우: 입력 끊김(EOF) → 안전 종료 / `best_score` 키 없음·정답 9·점수가 "abc" → 모두 '손상' 안내 후 기본 퀴즈 / 퀴즈 0개 + 점수 80인 정상 파일 → "퀴즈 0개, 최고점수 80점"으로 불러옴
+- 커밋: `cbcc141 Feat: state.json 저장·불러오기 - 파일 없음·손상 시 기본 퀴즈, Ctrl+C·EOF 저장 후 안전 종료`
+
 ## 시행착오
 
 ### 1. U3 문서 커밋을 빠뜨리고 브랜치를 만들었다
@@ -277,6 +324,8 @@ PS> git log --oneline --graph --all
   | 틀린 입력 | `continue` | 반복의 처음으로 돌아가 다시 묻기 (회전목마 다음 바퀴) |
   | 올바른 입력 | `return number` | 함수를 끝내고 숫자를 돌려주기 |
   | 5 선택 | `break` | 메뉴 반복을 끝내기 (회전목마에서 내림) |
+- U5: Quiz 객체는 파일에 바로 못 쓴다. dict(이름표 상자)로 바꿔 JSON 글자로 쓰고, 읽을 때 다시 Quiz로 만든다. 파일이 깨져도 `except`가 받아 주니 프로그램이 멈추지 않는다.
+- U5: merge는 '택배 받기'다. 받을 집(main)에 먼저 가서(`git checkout main`) 보낸 쪽(`feature/play-quiz`)의 상자를 받는다. 두 번 헷갈린 뒤 이 비유로 이해했다.
 - U4: 브랜치는 원본 공책(main)을 복사한 연습장이다. 연습장에서 만들고 잘 되면 main에 합친다. 커밋하지 않은 변경은 브랜치를 옮겨도 따라온다.
 - U4: 파이썬 `round(값)`은 엑셀 `ROUND(값, 0)`과 같다 (정수로 반올림). 처음에는 엑셀 `ROUND(값, 2)`처럼 생각해 66.67을 골랐다. `//`(소수점 버림)도 헷갈려서 점수 계산을 `round`로 바꿨다.
 - U1: `add`는 '담기', `commit`은 '사진 찍기', `push`는 'GitHub로 올리기'다. 커밋 전에 `git status`로 무엇이 담겼는지 보면 비밀 파일이 올라가는 사고를 막을 수 있다.
@@ -291,7 +340,11 @@ PS> git log --oneline --graph --all
 - `try/except`: 오류가 날 수 있는 일(`int("abc")`)을 try에서 해 보고, 오류가 나면 except에서 받아 프로그램이 멈추지 않게 한다.
 - `if/elif/else`: 메뉴 번호에 따라 다른 기능으로 길을 나눈다. 위에서부터 처음 맞는 하나만 실행된다.
 - 함수의 매개변수·반환값: `read_number("선택: ", 1, 5)`는 묻는 글과 범위를 재료로 받고, 검사를 통과한 숫자를 `return`으로 돌려준다.
-- 브랜치 생성·병합: `git checkout -b 이름`으로 연습장(브랜치)을 만들어 옮겨 가고, 작업 후 `git checkout main`으로 돌아와 `git merge --no-ff 이름`으로 합친다.
+- 브랜치 생성·병합: `git checkout -b 이름`으로 연습장(브랜치)을 만들어 옮겨 가고, 작업 후 `git checkout main`으로 돌아와 `git merge --no-ff 이름`으로 합친다. merge는 '지금 서 있는 브랜치가 상자를 받는 것'이라 받을 쪽(main)에 먼저 간다.
+- 파일 열기·읽기·쓰기: `with open(경로, "r" 또는 "w", encoding="utf-8") as file:`로 열고, 읽기는 `json.load(file)`, 쓰기는 `json.dump(data, file)`. with가 끝나면 파일이 자동으로 닫힌다.
+- JSON을 쓰는 이유: 글자로 된 약속이라 사람도 읽을 수 있고, 파이썬 dict·list와 모양이 거의 같아 그대로 바꿔 저장·불러오기 쉽다.
+- dict: 이름표(키)로 값을 꺼내는 상자. `data["quizzes"]`, `item["answer"]`처럼 쓴다. list는 순서 번호로, dict는 이름표로 꺼낸다.
+- try/except (파일): 파일이 없거나 깨졌을 때 나는 오류를 종류별로 받아 안내하고 기본 퀴즈로 계속한다.
 
 ## 용어 사전
 - **Git**: 파일이 언제 어떻게 바뀌었는지 사진첩처럼 차곡차곡 기록해 주는 프로그램. 예전 상태로 되돌리거나 비교할 수 있다.
@@ -338,3 +391,14 @@ PS> git log --oneline --graph --all
 - **`/` 와 `//`**: `/`는 보통 나눗셈(7 / 2 = 3.5), `//`는 소수점 아래를 버리는 몫 나눗셈(7 // 2 = 3).
 - **`+=`**: `a += 1`은 `a = a + 1`의 줄임말 (1 늘리기).
 - **`python -c "…"`**: 파일 없이 따옴표 안의 짧은 코드를 바로 실행.
+- **JSON**: 데이터를 `{"이름": 값}` 모양의 글자로 적는 약속. 사람도 읽을 수 있다.
+- **dict(딕셔너리)**: 이름표(키)를 붙여 값을 넣는 상자. `data["quizzes"]`처럼 꺼낸다.
+- **`with open(…) as file`**: 파일을 열고 블록이 끝나면 자동으로 닫아 주는 문법.
+- **읽기 `"r"` / 쓰기 `"w"`**: r은 읽기만, w는 새로 쓰기(없으면 만들고 있으면 덮어씀).
+- **`json.load` / `json.dump`**: JSON 글자 → 파이썬 값으로 읽기 / 파이썬 값 → JSON 글자로 쓰기.
+- **`ensure_ascii=False`**: 한글을 `\ud55c` 같은 기호 대신 글자 그대로 저장하는 옵션.
+- **`.append()`**: 목록(list) 끝에 항목을 하나 붙인다.
+- **`isinstance(값, int)`**: 값이 그 자료형인지 True/False로 알려 준다.
+- **KeyboardInterrupt / EOFError**: Ctrl+C로 중단할 때 / 입력이 더 이상 들어오지 않을 때 나는 오류.
+- **영속성**: 프로그램을 꺼도 데이터가 남아 있는 성질.
+- **`__file__`**: 지금 실행 중인 파이썬 파일의 위치.
